@@ -2,15 +2,13 @@ package org.vincibean.akka.websocket.playground
 
 import akka.actor.{Actor, ActorSystem, Props}
 import akka.http.scaladsl.Http
-import akka.http.scaladsl.model.StatusCodes
-import akka.http.scaladsl.model.ws.{BinaryMessage, Message, TextMessage, WebSocketRequest}
+import akka.http.scaladsl.model.ws.{BinaryMessage, Message, TextMessage}
 import akka.http.scaladsl.server.Directives.{path, _}
 import akka.http.scaladsl.server.Route
 import akka.pattern.ask
 import akka.stream.scaladsl.GraphDSL.Implicits._
 import akka.stream.scaladsl.{Flow, GraphDSL, Keep, Sink, Source}
 import akka.stream.{ActorMaterializer, FlowShape, OverflowStrategy}
-import akka.{Done, NotUsed}
 import org.vincibean.akka.websocket.playground.Route.GetWebsocketFlow
 
 import scala.concurrent.duration._
@@ -26,45 +24,10 @@ object AkkaHttpWSExampleApp extends App {
   val bindingFuture = Http().bindAndHandle(Route.websocketRoute, "localhost", 8080)
 
   println(s"Server online at http://localhost:8080/\nPress RETURN to stop...")
-  StdIn.readLine() // let it run until user presses return
+  StdIn.readLine()
   bindingFuture
-    .flatMap(_.unbind()) // trigger unbinding from the port
-    .onComplete(_ => system.terminate()) // and shutdown when done
-
-
-  // test client
-  // print each incoming strict text message
-  val printSink: Sink[Message, Future[Done]] =
-  Sink.foreach { case message: TextMessage.Strict => println("client received: " + message.text) }
-
-  val helloSource: Source[Message, NotUsed] = Source.single(TextMessage("hello world!"))
-
-  // the Future[Done] is the materialized value of Sink.foreach
-  // and it is completed when the stream completes
-  val flow: Flow[Message, Message, Future[Done]] =
-  Flow.fromSinkAndSourceMat(printSink, helloSource)(Keep.left)
-
-  // upgradeResponse is a Future[WebSocketUpgradeResponse] that
-  // completes or fails when the connection succeeds or fails
-  // and closed is a Future[Done] representing the stream completion from above
-  val (upgradeResponse, closed) =
-  Http().singleWebSocketRequest(WebSocketRequest("ws://localhost:8123/connect"), flow)
-
-  val connected = upgradeResponse.map { upgrade =>
-    // just like a regular http request we can access response status which is available via upgrade.response.status
-    // status code 101 (Switching Protocols) indicates that server support WebSockets
-    if (upgrade.response.status == StatusCodes.SwitchingProtocols) {
-      println("switching protocols")
-      Done
-    } else {
-      throw new RuntimeException(s"Connection failed: ${upgrade.response.status}")
-    }
-  }
-
-  // in a real application you would not side effect here
-  // and handle errors more carefully
-  connected.onComplete(println)
-  closed.foreach(_ => println("closed"))
+    .flatMap(_.unbind())
+    .onComplete(_ => system.terminate())
 
 }
 
