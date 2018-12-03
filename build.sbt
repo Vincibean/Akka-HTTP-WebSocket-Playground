@@ -1,4 +1,4 @@
-name := "akka-http-websocket-example"
+name := "akka-http-websocket-playground"
 
 version := "0.1"
 

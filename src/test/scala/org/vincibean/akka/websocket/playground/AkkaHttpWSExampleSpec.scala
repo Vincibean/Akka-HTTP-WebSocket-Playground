@@ -1,4 +1,4 @@
-package io.ticofab.example
+package org.vincibean.akka.websocket.playground
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.server.Directives

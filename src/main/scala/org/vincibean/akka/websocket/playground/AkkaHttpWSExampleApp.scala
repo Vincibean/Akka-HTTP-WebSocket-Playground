@@ -1,4 +1,4 @@
-package io.ticofab.example
+package org.vincibean.akka.websocket.playground
 
 import akka.actor.{Actor, ActorSystem, Props}
 import akka.http.scaladsl.Http
@@ -11,7 +11,7 @@ import akka.stream.scaladsl.GraphDSL.Implicits._
 import akka.stream.scaladsl.{Flow, GraphDSL, Keep, Sink, Source}
 import akka.stream.{ActorMaterializer, FlowShape, OverflowStrategy}
 import akka.{Done, NotUsed}
-import io.ticofab.example.Route.GetWebsocketFlow
+import org.vincibean.akka.websocket.playground.Route.GetWebsocketFlow
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, ExecutionContextExecutor, Future}
