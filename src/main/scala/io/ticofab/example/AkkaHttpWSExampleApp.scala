@@ -5,6 +5,7 @@ import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.model.ws.{BinaryMessage, Message, TextMessage, WebSocketRequest}
 import akka.http.scaladsl.server.Directives.{path, _}
+import akka.http.scaladsl.server.Route
 import akka.pattern.ask
 import akka.stream.scaladsl.GraphDSL.Implicits._
 import akka.stream.scaladsl.{Flow, GraphDSL, Keep, Sink, Source}
@@ -12,21 +13,24 @@ import akka.stream.{ActorMaterializer, FlowShape, OverflowStrategy}
 import akka.{Done, NotUsed}
 import io.ticofab.example.Route.GetWebsocketFlow
 
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
 import scala.concurrent.duration._
+import scala.concurrent.{ExecutionContext, ExecutionContextExecutor, Future}
+import scala.io.StdIn
 import scala.util.{Failure, Success}
 
 object AkkaHttpWSExampleApp extends App {
-  implicit val as = ActorSystem("example")
-  implicit val am = ActorMaterializer()
+  implicit val system: ActorSystem = ActorSystem("my-system")
+  implicit val materializer: ActorMaterializer = ActorMaterializer()
+  implicit val executionContext: ExecutionContextExecutor = system.dispatcher
 
-  Http()
-    .bindAndHandle(Route.websocketRoute, "0.0.0.0", 8123)
-    .onComplete {
-      case Success(value) => println(value)
-      case Failure(err) => println(err)
-    }
+  val bindingFuture = Http().bindAndHandle(Route.websocketRoute, "localhost", 8080)
+
+  println(s"Server online at http://localhost:8080/\nPress RETURN to stop...")
+  StdIn.readLine() // let it run until user presses return
+  bindingFuture
+    .flatMap(_.unbind()) // trigger unbinding from the port
+    .onComplete(_ => system.terminate()) // and shutdown when done
+
 
   // test client
   // print each incoming strict text message
@@ -71,12 +75,12 @@ object Route {
   implicit val as = ActorSystem("example")
   implicit val am = ActorMaterializer()
 
-  val websocketRoute =
+  def websocketRoute(implicit ec: ExecutionContext): Route =
     pathEndOrSingleSlash {
       complete("WS server is alive\n")
     } ~ path("connect") {
 
-      val handler = as.actorOf(Props[ClientHandlerActor])
+      val handler = as.actorOf(ClientHandlerActor.props)
       val futureFlow = (handler ? GetWebsocketFlow) (3.seconds).mapTo[Flow[Message, Message, _]]
 
       onComplete(futureFlow) {
@@ -87,7 +91,11 @@ object Route {
     }
 }
 
-class ClientHandlerActor extends Actor {
+object ClientHandlerActor {
+  def props(implicit ec: ExecutionContext) = Props(new ClientHandlerActor()(ec))
+}
+
+class ClientHandlerActor(implicit ec: ExecutionContext) extends Actor {
 
   implicit val as = context.system
   implicit val am = ActorMaterializer()
