@@ -35,8 +35,8 @@ object Route {
 
   case object GetWebsocketFlow
 
-  implicit val as = ActorSystem("example")
-  implicit val am = ActorMaterializer()
+  implicit val as: ActorSystem = ActorSystem("example")
+  implicit val am: ActorMaterializer = ActorMaterializer()
 
   def websocketRoute(implicit ec: ExecutionContext): Route =
     pathEndOrSingleSlash {
@@ -60,8 +60,8 @@ object ClientHandlerActor {
 
 class ClientHandlerActor(implicit ec: ExecutionContext) extends Actor {
 
-  implicit val as = context.system
-  implicit val am = ActorMaterializer()
+  implicit val as: ActorSystem = context.system
+  implicit val am: ActorMaterializer = ActorMaterializer()
 
   val (down, publisher) = Source
     .actorRef[String](1000, OverflowStrategy.fail)
@@ -71,13 +71,13 @@ class ClientHandlerActor(implicit ec: ExecutionContext) extends Actor {
   // test
   var counter = 0
   as.scheduler.schedule(0.seconds, 0.5.second, new Runnable {
-    override def run() = {
+    override def run(): Unit = {
       counter = counter + 1
       self ! counter
     }
   })
 
-  override def receive = {
+  override def receive: Receive = {
     case GetWebsocketFlow =>
 
       val flow = Flow.fromGraph(GraphDSL.create() { implicit b =>
