@@ -13,18 +13,14 @@ import scala.util.Random
 
 object WebSocketDataProvider {
 
-  private val graph: RunnableGraph[(ActorRef, Publisher[String])] = Source
-    .actorRef[String](1000, OverflowStrategy.fail)
-    .toMat(Sink.asPublisher(fanout = false))(Keep.both)
+  implicit val as: ActorSystem = ActorSystem("example")
+  implicit val am: ActorMaterializer = ActorMaterializer()
 
   def webSocketFlow()(implicit as: ActorSystem, am: ActorMaterializer, ec: ExecutionContext): Flow[Message, TextMessage.Strict, NotUsed] = {
-    val (down, publisher) = graph.run()
-
-    as.scheduler.schedule(0.seconds, 0.5.second, new Runnable {
-      override def run(): Unit = {
-        down ! Random.nextInt.toString
-      }
-    })
+    val publisher = Source.repeat(() => Random.alphanumeric.take(6).mkString)
+      .map(f => f())
+      .throttle(1, 1.second)
+      .runWith(Sink.asPublisher(fanout = false))
 
     Flow.fromSinkAndSource(sink, source(publisher))
   }
